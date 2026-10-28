@@ -42,6 +42,12 @@ humanizer analyze draft.pdf --out out/ --suggest --refcheck
 
 아래 단계는 OpenAlex · Europe PMC · arXiv · 출판사 사이트에 접속해야 합니다.
 
+OpenAlex는 API 키가 없으면 같은 IP를 쓰는 모든 사용자가 하루 무료 한도를 나눠 씁니다. 무료 키를 받아 넣으세요(https://help.openalex.org/api/authentication/).
+
+```bash
+export OPENALEX_API_KEY=your-key
+```
+
 ```bash
 export HUMANIZER_MAILTO=you@example.com
 ```

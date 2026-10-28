@@ -25,7 +25,7 @@ def _mailto(args) -> str | None:
 def cmd_collect(args) -> None:
     from .corpus.openalex import collect
     n = collect(args.out, per_query=args.per_query, mailto=_mailto(args), domains=args.domain,
-                countries_only=not args.all_countries)
+                countries_only=not args.all_countries, api_key=args.api_key or os.environ.get("OPENALEX_API_KEY"))
     print(f"{n} candidates -> {args.out}")
 
 
@@ -98,6 +98,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--domain", action="append", choices=["oled", "peled", "qled", "optics_display"])
     p.add_argument("--all-countries", action="store_true", help="do not require a US/EU-affiliated author")
     p.add_argument("--mailto", help="contact e-mail for the API polite pool (or HUMANIZER_MAILTO)")
+    p.add_argument("--api-key", help="OpenAlex API key (or OPENALEX_API_KEY); free at openalex.org")
     p.set_defaults(func=cmd_collect)
 
     p = sub.add_parser("fetch", help="download full texts in priority order (C4)")

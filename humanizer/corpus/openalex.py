@@ -28,7 +28,7 @@ def _abstract(inv: dict | None) -> str:
 
 
 def search(query: str, *, max_results: int, mailto: str | None, countries_only: bool,
-           session: requests.Session) -> Iterator[dict]:
+           session: requests.Session, api_key: str | None = None) -> Iterator[dict]:
     filters = [
         f"publication_year:{config.YEAR_MIN}-{config.YEAR_MAX}",
         "is_oa:true",
@@ -42,6 +42,9 @@ def search(query: str, *, max_results: int, mailto: str | None, countries_only: 
               "cursor": "*", "select": SELECT}
     if mailto:
         params["mailto"] = mailto
+    if api_key:
+        # Without a key, requests share a small free daily budget per IP address.
+        params["api_key"] = api_key
     got = 0
     while got < max_results:
         r = session.get(API, params=params, timeout=60)
@@ -104,7 +107,7 @@ def priority(rec: dict, max_log_cit: float) -> float:
 
 
 def collect(out_path: str | Path, *, per_query: int = 200, mailto: str | None = None,
-            domains: list[str] | None = None, countries_only: bool = True) -> int:
+            domains: list[str] | None = None, countries_only: bool = True, api_key: str | None = None) -> int:
     """Run all domain queries, dedupe, score and write candidates sorted by priority."""
     session = requests.Session()
     session.headers["User-Agent"] = "humanizer/0.1" + (f" (mailto:{mailto})" if mailto else "")
@@ -115,7 +118,8 @@ def collect(out_path: str | Path, *, per_query: int = 200, mailto: str | None = 
         for q in queries:
             log.info("OpenAlex: %s / %s", domain, q)
             try:
-                for w in search(q, max_results=per_query, mailto=mailto, countries_only=countries_only, session=session):
+                for w in search(q, max_results=per_query, mailto=mailto, countries_only=countries_only,
+                                session=session, api_key=api_key):
                     rec = _record(w, domain)
                     if rec["id"] in records:
                         if domain not in records[rec["id"]]["domains"]:
