@@ -6,6 +6,7 @@ import logging
 import re
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 
@@ -18,12 +19,36 @@ def _arxiv_pdf(url: str) -> str:
     return f"https://arxiv.org/pdf/{m.group(1)}" if m else url
 
 
+_last_hit: dict[str, float] = {}
+PER_HOST_INTERVAL = 3.0  # seconds between requests to the same publisher host
+
+
+def _wait_for_host(url: str) -> None:
+    host = urlparse(url).netloc
+    wait = _last_hit.get(host, 0.0) + PER_HOST_INTERVAL - time.monotonic()
+    if wait > 0:
+        time.sleep(wait)
+    _last_hit[host] = time.monotonic()
+
+
 def _get(session: requests.Session, url: str, want: str) -> bytes | None:
-    try:
-        r = session.get(url, timeout=60, allow_redirects=True)
-    except requests.RequestException as e:
-        log.info("fetch failed %s: %s", url, e)
-        return None
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://"):]  # plain HTTP is not allowed through the proxy
+    r = None
+    for attempt in range(2):
+        _wait_for_host(url)
+        try:
+            r = session.get(url, timeout=60, allow_redirects=True)
+        except requests.RequestException as e:
+            log.info("fetch failed %s: %s", url, e)
+            return None
+        if r.status_code == 429 and attempt == 0:
+            retry = r.headers.get("Retry-After", "")
+            delay = min(int(retry), 60) if retry.isdigit() else 20
+            log.info("HTTP 429 for %s, retrying in %ss", url, delay)
+            time.sleep(delay)
+            continue
+        break
     if not r.ok:
         log.info("HTTP %s for %s", r.status_code, url)
         return None
@@ -72,4 +97,5 @@ def fetch_all(candidates: str | Path, raw_dir: str | Path, *, limit: int | None 
             else:
                 stats["skipped"] += 1
             logf.write(json.dumps({"id": wid, "saved": saved, "tried": [u for u, _ in attempts]}) + "\n")
+            logf.flush()
     return stats
