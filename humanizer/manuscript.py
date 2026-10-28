@@ -46,7 +46,9 @@ def build_manuscript(path: str, kind: str, blocks: Iterable[tuple[str, dict[str,
             if len(text.split()) < 25:
                 paragraphs.append(Paragraph(idx, text, "front", is_heading=True, source=source))
                 continue
-            sec = "abstract"
+            # Without an "Abstract" heading only the first prose paragraph is taken as the
+            # abstract; the rest stays unlabelled until a recognized heading appears.
+            sec, section = "abstract", "other"
         paragraphs.append(Paragraph(idx, text, sec, sentences=split_sentences(text), source=source))
     return Manuscript(path=path, kind=kind, paragraphs=paragraphs, references=references)
 

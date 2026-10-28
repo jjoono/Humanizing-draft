@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import re
+import unicodedata
 from pathlib import Path
 
 from lxml import etree
@@ -20,6 +21,7 @@ _SUPER_CIT = re.compile(r"^[\d,–\-\s]+$")
 
 
 def _clean_para(text: str) -> str | None:
+    text = unicodedata.normalize("NFKC", text)  # ligatures such as "ﬁ" -> "fi"
     text = normalize_citations(re.sub(r"\s+", " ", text)).strip()
     text = re.sub(r"(<CIT>\s*){2,}", "<CIT> ", text)
     n_words = len(text.split())
@@ -111,6 +113,10 @@ def _pdf_blocks(path: Path):
                             parts.append(t)
                             sizes.append(span["size"])
                     lines.append("".join(parts))
+                # A heading often shares a block with the paragraph that follows it.
+                if len(lines) > 1 and classify_heading(lines[0]):
+                    yield lines[0].strip(), {"page": pno}, True
+                    lines = lines[1:]
                 text = dehyphenate("\n".join(lines))
                 if text:
                     short = len(text.split()) <= 12 and not text.endswith((".", ":", ";"))

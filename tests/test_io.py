@@ -47,3 +47,11 @@ def test_pdf_end_to_end(sample_pdf, tmp_path):
         annots = [(a.type[1], a.info["content"]) for a in doc[0].annots()]
     assert annots and all(kind == "Highlight" for kind, _ in annots)
     assert "LEX_" in annots[0][1]
+
+
+def test_unheaded_body_is_not_labelled_abstract():
+    from humanizer.manuscript import build_manuscript
+    long = " ".join(["The device was measured under ambient conditions."] * 5)
+    ms = build_manuscript("x", "text", [("Short title", {}, False), (long, {}, False), (long, {}, False),
+                                        ("Experimental", {}, True), (long, {}, False)])
+    assert [p.section for p in ms.body()] == ["abstract", "other", "methods"]
