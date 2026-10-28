@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 API = "https://api.openalex.org/works"
 SELECT = ",".join([
     "id", "doi", "title", "publication_year", "cited_by_count", "authorships", "primary_location",
-    "best_oa_location", "open_access", "ids", "abstract_inverted_index", "language", "type",
+    "best_oa_location", "locations", "open_access", "ids", "abstract_inverted_index", "language", "type",
 ])
 
 
@@ -62,6 +62,17 @@ def search(query: str, *, max_results: int, mailto: str | None, countries_only: 
         time.sleep(0.2)
 
 
+def _oa_pdf_urls(w: dict) -> list[str]:
+    """Every open-access PDF copy, repositories first: publishers often block scripted downloads."""
+    locs = [l for l in (w.get("locations") or []) if l.get("is_oa") and l.get("pdf_url")]
+    locs.sort(key=lambda l: ((l.get("source") or {}).get("type") != "repository"))
+    urls: list[str] = []
+    for u in [l["pdf_url"] for l in locs] + [(w.get("best_oa_location") or {}).get("pdf_url")]:
+        if u and u not in urls:
+            urls.append(u)
+    return urls
+
+
 def _record(w: dict, domain: str) -> dict:
     authors = w.get("authorships") or []
     countries = [sorted({i.get("country_code") for i in a.get("institutions", []) if i.get("country_code")})
@@ -84,7 +95,9 @@ def _record(w: dict, domain: str) -> dict:
         "pdf_url": loc.get("pdf_url"),
         "landing_url": loc.get("landing_page_url"),
         "license": loc.get("license"),
-        "arxiv": next((l.get("landing_page_url") for l in [loc, prim] if "arxiv.org" in (l.get("landing_page_url") or "")), None),
+        "pdf_urls": _oa_pdf_urls(w),
+        "arxiv": next((l.get("landing_page_url") for l in [loc, prim, *(w.get("locations") or [])]
+                       if "arxiv.org" in (l.get("landing_page_url") or "")), None),
         "abstract": _abstract(w.get("abstract_inverted_index")),
         "domains": [domain],
     }

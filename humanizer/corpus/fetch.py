@@ -20,6 +20,7 @@ def _arxiv_pdf(url: str) -> str:
 
 
 _last_hit: dict[str, float] = {}
+MAX_PDF_COPIES = 5
 PER_HOST_INTERVAL = 3.0  # seconds between requests to the same publisher host
 
 
@@ -82,8 +83,9 @@ def fetch_all(candidates: str | Path, raw_dir: str | Path, *, limit: int | None 
                 attempts.append((EUROPE_PMC.format(pmcid=rec["pmcid"]), "xml"))
             if rec.get("arxiv"):
                 attempts.append((_arxiv_pdf(rec["arxiv"]), "pdf"))
-            if rec.get("pdf_url"):
-                attempts.append((rec["pdf_url"], "pdf"))
+            for url in (rec.get("pdf_urls") or [rec.get("pdf_url")])[:MAX_PDF_COPIES]:
+                if url and "arxiv.org" not in url:
+                    attempts.append((url, "pdf"))
             saved = None
             for url, kind in attempts:
                 body = _get(session, url, kind)
