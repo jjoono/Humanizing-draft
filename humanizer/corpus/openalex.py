@@ -90,6 +90,17 @@ def _record(w: dict, domain: str) -> dict:
     }
 
 
+def is_review(rec: dict) -> bool:
+    """Reviews are written in a different register than research articles (rule C1)."""
+    return bool(config.REVIEW_TITLE.search(rec["title"]) or config.REVIEW_VENUE.search(rec["venue"]))
+
+
+def on_topic(rec: dict) -> bool:
+    """Rule C2: title or abstract must mention at least one device/display term."""
+    text = (rec["title"] + " " + rec["abstract"]).lower()
+    return any(t in text for t in config.TOPIC_TERMS)
+
+
 def priority(rec: dict, max_log_cit: float) -> float:
     """Rule C3 priority score in [0, ~1.05]."""
     wts = config.PRIORITY_WEIGHTS
@@ -112,6 +123,7 @@ def collect(out_path: str | Path, *, per_query: int = 200, mailto: str | None = 
     session = requests.Session()
     session.headers["User-Agent"] = "humanizer/0.1" + (f" (mailto:{mailto})" if mailto else "")
     records: dict[str, dict] = {}
+    dropped = 0
     for domain, queries in config.DOMAIN_QUERIES.items():
         if domains and domain not in domains:
             continue
@@ -121,6 +133,9 @@ def collect(out_path: str | Path, *, per_query: int = 200, mailto: str | None = 
                 for w in search(q, max_results=per_query, mailto=mailto, countries_only=countries_only,
                                 session=session, api_key=api_key):
                     rec = _record(w, domain)
+                    if is_review(rec) or not on_topic(rec):
+                        dropped += 1
+                        continue
                     if rec["id"] in records:
                         if domain not in records[rec["id"]]["domains"]:
                             records[rec["id"]]["domains"].append(domain)
@@ -128,6 +143,7 @@ def collect(out_path: str | Path, *, per_query: int = 200, mailto: str | None = 
                         records[rec["id"]] = rec
             except requests.RequestException as e:
                 log.warning("query failed (%s): %s", q, e)
+    log.info("dropped %d review or off-topic hits", dropped)
     max_log = max((math.log1p(r["cited_by_count"]) for r in records.values()), default=0.0)
     for r in records.values():
         r["priority"] = priority(r, max_log)

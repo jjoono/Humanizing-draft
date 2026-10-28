@@ -1,6 +1,8 @@
 """Corpus selection settings (RULES.md section 1). Edit here to retarget the corpus."""
 from __future__ import annotations
 
+import re
+
 YEAR_MAX = 2019  # rule C1: published before 2020
 YEAR_MIN = 1987  # Tang & VanSlyke's OLED paper; nothing older is relevant
 
@@ -28,7 +30,13 @@ DOMAIN_QUERIES: dict[str, list[str]] = {
 TOPIC_TERMS = [
     "oled", "light-emitting", "electroluminescen", "perovskite", "quantum dot", "display", "outcoupling",
     "microcavity", "exciton", "phosphorescen", "delayed fluorescence", "external quantum efficiency", "emitter",
+    "liquid crystal", "light extraction", "micro-led",
 ]
+
+REVIEW_TITLE = re.compile(r"\b(review|reviews|progress report|anniversary article|perspective|overview|"
+                          r"tutorial|roadmap|state of the art|recent advances|recent progress)\b", re.I)
+REVIEW_VENUE = re.compile(r"(chemical reviews|reviews of modern physics|chemical society reviews|"
+                          r"progress in|annual review|reports on progress|materials science and engineering: r)", re.I)
 
 # rule C3: US + EU/EEA + UK + Switzerland.
 PRIORITY_COUNTRIES = {

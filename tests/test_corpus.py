@@ -1,6 +1,6 @@
 from humanizer.config import PRIORITY_WEIGHTS
 from humanizer.corpus.extract import is_holdout, parse_jats
-from humanizer.corpus.openalex import _abstract, priority
+from humanizer.corpus.openalex import _abstract, is_review, on_topic, priority
 
 LONG = "In all devices the emission layer was deposited by thermal evaporation under high vacuum and its thickness was varied"
 
@@ -34,3 +34,11 @@ def test_priority_prefers_old_cited_us_eu_papers():
 def test_abstract_reconstruction_and_holdout():
     assert _abstract({"light": [1], "Efficient": [0], "emission": [2]}) == "Efficient light emission"
     assert is_holdout("W123", 0.1) == is_holdout("W123", 0.1)
+
+
+def test_review_and_topic_filters():
+    rec = {"title": "25th Anniversary Article: Organic Field-Effect Transistors", "venue": "Advanced Materials", "abstract": ""}
+    assert is_review(rec)
+    assert not is_review({"title": "Bright LEDs", "venue": "Physical Review Letters"})
+    assert not on_topic({"title": "Ultrafast all-optical switching by single photons", "abstract": ""})
+    assert on_topic({"title": "High-efficiency red electrophosphorescence devices", "abstract": ""})
